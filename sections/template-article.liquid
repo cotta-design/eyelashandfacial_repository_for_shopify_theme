@@ -1,0 +1,240 @@
+<article class="py-8" itemscope itemtype="http://schema.org/BlogPosting">
+{% comment %} セクションの中のブロックたちのブロックが・・・ {% endcomment %}
+    {% for block in section.blocks %}
+      {% comment %} 以下のブロックタイプであるケースは {% endcomment %}
+        {% case block.type %}
+
+        {% comment %} 題名だったとき {% endcomment %}
+          {% when 'article_title' %}
+            <div class="flex items-center justify-center">
+              <div class="max-w-7xl text-center">
+                {% comment %} 記事のカテゴリ {% endcomment %}
+                <a href="{{ blog.url }}" class="text-base uppercase text-gray-500 hover:text-gray-900 font-bold">{{ blog.title }}</a>
+                {% comment %} 記事の題名 {% endcomment %}
+                <h1 class="text-4xl md:text-6xl font-medium" itemprop="headline">{{ article.title }}</h1>
+              </div>
+            </div>
+
+         {% comment %} 記事の著者だったとき {% endcomment %}
+          {% when 'article_author' %}
+            <div class="flex items-center justify-center">
+              <div class="max-w-7xl text-center" itemscope itemtype="http://schema.org/Person">
+              {% comment %} セクションのセッティングで著者を表示するように設定された場合 {% endcomment %}
+                {% if section.settings.enable_author %}
+                  <small itemprop="author">{{ article.author }}</small>
+                {% endif %}
+              </div>
+            </div>
+
+          {% comment %} 記事が書かれた日付だった場合 {% endcomment %}
+          {% when 'article_published_date' %}
+            <div class="flex items-center justify-center">
+              <div class="max-w-7xl text-center">
+                {% if section.settings.enable_published_date %}
+                  <time datetime="{{ article.published_at | date: '%a, %b %d, %y' }}" itemprop="datePublished dateCreated">{{ article.published_at | date: format:'on_date' }}</time>
+                {% endif %}
+              </div>
+            </div>
+         {% comment %} 記事の画像だったとき {% endcomment %}
+          {% when 'featured_image' %}
+            <div itemprop="image" class="max-w-4xl bg-blue-100 rounded-lg mx-2 md:mx-auto overflow:hidden my-4">
+            {% comment %} 記事の画像がなかった場合 {% endcomment %}
+            {% if article.image != blank %}
+                <img class="w-full h-80 md:h-96 object-cover object-center" src="{{ article.image | img_url: 'large' }}" alt="{{ article.image.alt }}">
+              {% comment %} それ以外の場合は {% endcomment %}
+              {% else %}
+              {% comment %} lifestyle-1の画像をプレイスホルダーの画像として出してください {% endcomment %}
+                {% assign placeholder_image = 'lifestyle-1' %}
+                {{ placeholder_image |  placeholder_svg_tag:"w-full h-80 md:h-96 object-cover object-center p-5" }}
+              {% endif %}
+            </div>
+
+            {% comment %} 記事のコンテンツだったとき {% endcomment %}
+          {% when 'article_content' %}
+            <div class="flex items-center justify-center">
+              <div itemprop="articleBody" class="max-w-4xl">
+                {{ article.content }}
+              </div>
+            </div>
+          {% else %}
+        {% endcase %}
+      {% endfor %}
+</article>
+
+{% comment %} ポストされたコメント一覧はここから {% endcomment %}
+{% if blog.comments_enabled? %}
+      <div id="comment" class="my-8">
+        {% comment %} コメントが一つでもあった場合は {% endcomment %}
+        {% if article.comments_count > 0 %}
+          <div class="flex-1 items-center justify-center mx-auto max-w-4xl px-4">
+            <h1 class="text-lg mb-4 font-medium">See what poeple say</h1>
+
+            {% comment %} ページ送りは5コメントごとに作ってね {% endcomment %}
+            {% paginate article.comments by 5 %}
+              {% for comment in article.comments %}
+                <div class="flex-1 border my-4 px-4 py-2 sm:px-6 sm:py-4 leading-relaxed">
+                  <span class="comment_author">{{ comment.author }}</span> <span class="text-xs text-gray-400">{{ comment.created_at | date: format: 'default' }}</span>
+                  <p class="text-sm">{{ comment.content }}</p>
+                </div>
+              {% endfor %}
+
+              {% comment %} コメントページが1ページ以上（6コメント以上）になった場合は {% endcomment %}
+              {% if paginate.pages > 1 %}
+                {{ paginate | default_pagination }}
+              {% endif %}
+            {% endpaginate %}
+
+          </div>
+          {% comment %} コメントがそれ以外の、ゼロだった場合は {% endcomment %}
+          {% else %}
+            There is no comments in this article.
+        {% endif %}
+      </div>
+
+      {% comment %} コメントを記入する大きなセクション {% endcomment %}
+    <div id="comment_form" class="mb-8">
+      {% form 'new_comment', article %}
+        <div class="flex-1 mx-auto items-center justify-center max-w-4xl px-4">
+      {% comment %} ここからコメントフォームの記入がエラーか成功かが表示されるところ {% endcomment %}
+       {% comment %} コメント欄への記入がエラーだった場合は {% endcomment %}
+          {% if form.errors %}
+            <div class="border px-5">
+              <div class="flex flex-row items-center w-full my-3">
+                <div class="text-red-500">
+                  {% render 'icon-failed' %}
+                </div>
+                <div class="text-sm font-medium ml-3">
+                  Oh no! Your comment was not posted
+                </div>
+              </div>
+              <ul class="px-4 mb-3 ml-7 list-decimal">
+                {% for error in form.errors %}
+                  <li>
+                    <span>{{ form.errors.messages[error] }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+
+        {% comment %} コメントのポストが成功した場合は {% endcomment %}
+          {% elsif form.posted_successfully? %}
+            <div class="flex flex-row items-center w-full my-3 p-5">
+              <div class="text-green-500">
+                {% render 'icon-successed' %}
+              </div>
+              <div class="text-sm font-medium ml-3">Comment is posted successfully</div>
+            </div>
+          {% endif %}
+
+      {% comment %} ここからコメントフォーム自体 {% endcomment %}
+          <div class="px-1 md:flex mb-3">
+            {% comment %} 名前を記入するところ {% endcomment %}
+            <div class="px-3 md:w-1/2">
+              <label for="comment_author" class="text-gray-700 font-medium uppercase text-xs mb-2">Name</label>
+              <input type="text" name="comment[author]" id="comment_author" class="w-full text-gray-700 border px-4 py-3 mb-3 focus:outline-none" placeholder="Mikako Yee" required>
+            </div>
+
+            {% comment %} Eメールを記入するところ {% endcomment %}
+            <div class="px-3 md:w-1/2">
+            <label for="comment_email" class="text-gray-700 font-medium uppercase text-xs mb-2">Email</label>
+              <input type="email" name="comment[email]" id="comment_email" class="w-full text-gray-700 border px-4 py-3 mb-3 focus:outline-none" placeholder="mikako@yee.com" required>
+            </div>
+          </div>
+          {% comment %} コメント欄を記入するところ {% endcomment %}
+          <div class="px-1 md:flex mb-3">
+            <div class="md:w-full px-3">
+              <label for="comment_content" class="text-gray-700 font-medium uppercase text-xs mb-2">Comment</label>
+              <textarea class="w-full text-gray-700 resize-none border h-20 py-2 px-3 focus:outline-none" name="comment[body]" id="comment_content" required></textarea>
+            </div>
+          </div>
+          {% comment %} 送信ボタン {% endcomment %}
+          <div class="px-1 md:felx mb-3">
+            <div class="md:w-full px-3">
+              <input type="submit" class="w-full cursor-pointer px-4 py-2 border font-medium text-base text-white bg-gray-900 hover:bg-gray-500" value="Post comment">
+            </div>
+          </div>
+
+        </div>
+      {% endform %}
+    </div>
+
+
+{% endif %}
+
+
+{% comment %} seo対策のためのjson structured schema {% endcomment %}
+<script type="application/ld+json">
+  {
+    "@content":"http://schema.org",
+    "@type":"BlogPosting",
+    "headling":{{ article.title | json }},
+    "articleBody":{{ article.content |  strip_html | json }},
+    {% if article.excerpt != blank %}
+      "description": {{ article.content | strip_html | json }},
+    {% endif %}
+    {% if article.image %}
+      "image":[
+        {{ article.image | img_url: "medium" | prepend: 'https' | json }}
+      ],
+    {% endif %}
+    "datePublished":{{ article.published_at | date: format: "default" | json}},
+    "dateCreated":{{ article.created_at | date: format: "default" | json }},
+    "author": {
+      "@type": "Person",
+      "name": {{ article.author | json }},
+    },
+    "publisher":{
+      "@type": "Organization",
+      "name": {{ shop.name | json }}
+    }
+  }
+</script>
+
+
+{% comment %} 実際に記事をエディターで操作するときに現れるエディター画面構造 {% endcomment %}
+{% schema %}
+{
+  "name": "Template Article",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_author",
+      "default": true,
+      "label": "Display author name"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_published_date",
+      "default": true,
+      "label": "Display published date"
+    }
+    ],
+    "blocks": [
+      {
+        "type": "article_title",
+        "name": "Title",
+        "limit": 1
+      },
+      {
+        "type": "article_author",
+        "name": "Author",
+        "limit": 1
+      },
+      {
+        "type": "article_published_date",
+        "name": "Published date",
+        "limit":1
+      },
+      {
+        "type": "featured_image",
+        "name": "Thumbnail",
+        "limit":2
+      },
+      {
+        "type": "article_content",
+        "name": "Content",
+        "limit": 1
+      }
+    ]
+}
+{% endschema %}
